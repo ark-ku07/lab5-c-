@@ -3,27 +3,30 @@
 
 #include <iostream>
 #include <fstream>
-#include <cstring>
+#include <string>
 
 class Item {
 private:
     int id;
-    char name[50];
+    std::string name;
     float price;
-    char category[30];
+    std::string category;
+    Item* next;
 
 public:
     Item();
-    Item(int id, const char* name, float price, const char* category);
+    Item(int id, const std::string& name, float price, const std::string& category);
     
     int getId() const;
-    const char* getName() const;
+    std::string getName() const;
     float getPrice() const;
-    const char* getCategory() const;
+    std::string getCategory() const;
+    Item* getNext() const;
     
-    void setName(const char* name);
+    void setName(const std::string& name);
     void setPrice(float price);
-    void setCategory(const char* category);
+    void setCategory(const std::string& category);
+    void setNext(Item* next);
     
     friend std::ostream& operator<<(std::ostream& os, const Item& item);
     friend std::istream& operator>>(std::istream& is, Item& item);
@@ -31,30 +34,24 @@ public:
 
 class Menu {
 private:
-    Item* items;
-    int count;
-    int max;
+    Item* head;
     int next_id;
-    
-    void grow();
+    std::string filename;
 
 public:
     Menu();
     ~Menu();
     
-    void load(const char* filename);
-    void save(const char* filename);
+    void load(const std::string& filename);
+    void save();
     
     void show();
     void add();
     void edit();
-    void search();
+    void find();
     void del();
     
-    Item& operator[](int index);
-    const Item& operator[](int index) const;
-    
-    int findById(int id) const;
+    Item* findById(int id) const;
 };
 
 #endif
