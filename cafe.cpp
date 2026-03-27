@@ -1,43 +1,21 @@
 #include "cafe.h"
 #include <limits>
 
-Item::Item() : id(0), price(0) {
-    name[0] = '\0';
-    category[0] = '\0';
-}
+Item::Item() : id(0), price(0), next(nullptr) {}
 
-Item::Item(int id, const char* name, float price, const char* category) : id(id), price(price) {
-    strcpy(this->name, name);
-    strcpy(this->category, category);
-}
+Item::Item(int id, const std::string& name, float price, const std::string& category)
+    : id(id), name(name), price(price), category(category), next(nullptr) {}
 
-int Item::getId() const {
-    return id;
-}
+int Item::getId() const { return id; }
+std::string Item::getName() const { return name; }
+float Item::getPrice() const { return price; }
+std::string Item::getCategory() const { return category; }
+Item* Item::getNext() const { return next; }
 
-const char* Item::getName() const {
-    return name;
-}
-
-float Item::getPrice() const {
-    return price;
-}
-
-const char* Item::getCategory() const {
-    return category;
-}
-
-void Item::setName(const char* name) {
-    strcpy(this->name, name);
-}
-
-void Item::setPrice(float price) {
-    this->price = price;
-}
-
-void Item::setCategory(const char* category) {
-    strcpy(this->category, category);
-}
+void Item::setName(const std::string& n) { name = n; }
+void Item::setPrice(float p) { price = p; }
+void Item::setCategory(const std::string& c) { category = c; }
+void Item::setNext(Item* n) { next = n; }
 
 std::ostream& operator<<(std::ostream& os, const Item& item) {
     os << item.id << " " << item.name << " " << item.price << " [" << item.category << "]";
@@ -49,79 +27,91 @@ std::istream& operator>>(std::istream& is, Item& item) {
     return is;
 }
 
-Menu::Menu() : items(nullptr), count(0), max(10), next_id(1) {
-    items = new Item[max];
-}
+Menu::Menu() : head(nullptr), next_id(1) {}
 
 Menu::~Menu() {
-    delete[] items;
-}
-
-void Menu::grow() {
-    max = max * 2;
-    Item* new_items = new Item[max];
-    for (int i = 0; i < count; i++) {
-        new_items[i] = items[i];
+    Item* current = head;
+    while (current != nullptr) {
+        Item* temp = current;
+        current = current->getNext();
+        delete temp;
     }
-    delete[] items;
-    items = new_items;
 }
 
-void Menu::load(const char* filename) {
+void Menu::load(const std::string& fname) {
+    filename = fname;
     std::ifstream file(filename);
     if (!file.is_open()) return;
     
     int id;
-    char name[50];
+    std::string name;
     float price;
-    char category[30];
+    std::string category;
+    
+    Item* last = nullptr;
     
     while (file >> id >> name >> price >> category) {
-        if (count >= max) grow();
-        items[count] = Item(id, name, price, category);
-        count++;
-        if (id >= next_id) next_id = id + 1;
+        Item* new_item = new Item(id, name, price, category);
+        
+        if (head == nullptr) {
+            head = new_item;
+        } else {
+            last->setNext(new_item);
+        }
+        last = new_item;
+        
+        if (id >= next_id) {
+            next_id = id + 1;
+        }
     }
     
     file.close();
 }
 
-void Menu::save(const char* filename) {
+void Menu::save() {
     std::ofstream file(filename);
     if (!file.is_open()) {
         std::cout << "Oshibka sohraneniya!\n";
         return;
     }
     
-    for (int i = 0; i < count; i++) {
-        file << items[i].getId() << " "
-             << items[i].getName() << " "
-             << items[i].getPrice() << " "
-             << items[i].getCategory() << "\n";
+    Item* current = head;
+    while (current != nullptr) {
+        file << current->getId() << " "
+             << current->getName() << " "
+             << current->getPrice() << " "
+             << current->getCategory() << "\n";
+        current = current->getNext();
     }
     
     file.close();
 }
 
 void Menu::show() {
-    if (count == 0) {
+    if (head == nullptr) {
         std::cout << "Spisok pust\n";
         return;
     }
     
-    for (int i = 0; i < count; i++) {
-        std::cout << items[i] << std::endl;
+    Item* current = head;
+    while (current != nullptr) {
+        std::cout << *current << std::endl;
+        current = current->getNext();
     }
 }
 
-int Menu::findById(int id) const {
-    for (int i = 0; i < count; i++) {
-        if (items[i].getId() == id) return i;
+Item* Menu::findById(int id) const {
+    Item* current = head;
+    while (current != nullptr) {
+        if (current->getId() == id) {
+            return current;
+        }
+        current = current->getNext();
     }
-    return -1;
+    return nullptr;
 }
 
-float inputFloat(const char* prompt) {
+float inputFloat(const std::string& prompt) {
     float value;
     while (true) {
         std::cout << prompt;
@@ -138,7 +128,7 @@ float inputFloat(const char* prompt) {
     }
 }
 
-int inputInt(const char* prompt) {
+int inputInt(const std::string& prompt) {
     int value;
     while (true) {
         std::cout << prompt;
@@ -156,11 +146,8 @@ int inputInt(const char* prompt) {
 }
 
 void Menu::add() {
-    if (count >= max) grow();
-    
-    char name[50];
+    std::string name, category;
     float price;
-    char category[30];
     
     std::cout << "Vvedite nazvanie: ";
     std::cin >> name;
@@ -170,81 +157,93 @@ void Menu::add() {
     std::cout << "Vvedite kategoriyu: ";
     std::cin >> category;
     
-    items[count] = Item(next_id, name, price, category);
-    count++;
+    Item* new_item = new Item(next_id, name, price, category);
     next_id++;
     
+    if (head == nullptr) {
+        head = new_item;
+    } else {
+        Item* current = head;
+        while (current->getNext() != nullptr) {
+            current = current->getNext();
+        }
+        current->setNext(new_item);
+    }
+    
     std::cout << "Dobavleno! ID: " << (next_id - 1) << std::endl;
-    save("db.txt");
+    save();
 }
 
 void Menu::edit() {
     int id = inputInt("Vvedite ID: ");
     
-    int index = findById(id);
-    if (index == -1) {
+    Item* item = findById(id);
+    if (item == nullptr) {
         std::cout << "Ne naideno!\n";
         return;
     }
     
-    char name[50];
+    std::string name, category;
     float price;
-    char category[30];
     
-    std::cout << "Staroe nazvanie: " << items[index].getName() << std::endl;
+    std::cout << "Staroe nazvanie: " << item->getName() << std::endl;
     std::cout << "Novoe nazvanie: ";
     std::cin >> name;
     
     price = inputFloat("Novaya cena: ");
     
-    std::cout << "Staraya kategoriya: " << items[index].getCategory() << std::endl;
+    std::cout << "Staraya kategoriya: " << item->getCategory() << std::endl;
     std::cout << "Novaya kategoriya: ";
     std::cin >> category;
     
-    items[index].setName(name);
-    items[index].setPrice(price);
-    items[index].setCategory(category);
+    item->setName(name);
+    item->setPrice(price);
+    item->setCategory(category);
     
     std::cout << "Izmeneno!\n";
-    save("db.txt");
+    save();
 }
 
-void Menu::search() {
+void Menu::find() {
     int choice = inputInt("\n--- Poisk ---\n1 - po ID\n2 - po cene (do)\n3 - po kategorii\nVash vibor: ");
     
     if (choice == 1) {
         int id = inputInt("Vvedite ID: ");
         
-        int index = findById(id);
-        if (index == -1) {
+        Item* item = findById(id);
+        if (item == nullptr) {
             std::cout << "Ne naideno!\n";
         } else {
-            std::cout << items[index] << std::endl;
+            std::cout << *item << std::endl;
         }
     }
     else if (choice == 2) {
         float max_price = inputFloat("Maksimalnaya cena: ");
         
         bool found = false;
-        for (int i = 0; i < count; i++) {
-            if (items[i].getPrice() <= max_price) {
-                std::cout << items[i] << std::endl;
+        Item* current = head;
+        while (current != nullptr) {
+            if (current->getPrice() <= max_price) {
+                std::cout << *current << std::endl;
                 found = true;
             }
+            current = current->getNext();
         }
         if (!found) std::cout << "Ne naideno!\n";
     }
     else if (choice == 3) {
-        char category[30];
+        std::string category;
         std::cout << "Vvedite kategoriyu: ";
         std::cin >> category;
         
         bool found = false;
-        for (int i = 0; i < count; i++) {
-            if (strcmp(items[i].getCategory(), category) == 0) {
-                std::cout << items[i] << std::endl;
+        Item* current = head;
+        while (current != nullptr) {
+            if (current->getCategory() == category) {
+                std::cout << *current << std::endl;
                 found = true;
             }
+            current = current->getNext();
         }
         if (!found) std::cout << "Ne naideno!\n";
     }
@@ -256,25 +255,32 @@ void Menu::search() {
 void Menu::del() {
     int id = inputInt("Vvedite ID: ");
     
-    int index = findById(id);
-    if (index == -1) {
-        std::cout << "Ne naideno!\n";
+    if (head == nullptr) {
+        std::cout << "Spisok pust\n";
         return;
     }
     
-    for (int i = index; i < count - 1; i++) {
-        items[i] = items[i + 1];
+    if (head->getId() == id) {
+        Item* temp = head;
+        head = head->getNext();
+        delete temp;
+        std::cout << "Udaleno!\n";
+        save();
+        return;
     }
-    count--;
     
-    std::cout << "Udaleno!\n";
-    save("db.txt");
-}
-
-Item& Menu::operator[](int index) {
-    return items[index];
-}
-
-const Item& Menu::operator[](int index) const {
-    return items[index];
+    Item* current = head;
+    while (current->getNext() != nullptr) {
+        if (current->getNext()->getId() == id) {
+            Item* temp = current->getNext();
+            current->setNext(current->getNext()->getNext());
+            delete temp;
+            std::cout << "Udaleno!\n";
+            save();
+            return;
+        }
+        current = current->getNext();
+    }
+    
+    std::cout << "Ne naideno!\n";
 }
