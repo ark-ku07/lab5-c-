@@ -28,9 +28,18 @@ void showMenu() {
     std::cout << "Vash vibor: ";
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     Menu cafe;
-    cafe.load("db.txt");
+    
+    std::string filename;
+    if (argc >= 2) {
+        filename = argv[1];
+    } else {
+        std::cout << "Vvedite imya faila: ";
+        std::cin >> filename;
+    }
+    
+    cafe.load(filename);
     
     int choice;
     
@@ -39,7 +48,7 @@ int main() {
         choice = getChoice();
         
         if (choice == 0) {
-            cafe.save("db.txt");
+            cafe.save();
             std::cout << "Vykhod...\n";
             break;
         }
@@ -55,7 +64,7 @@ int main() {
                 cafe.edit();
                 break;
             case 4:
-                cafe.search();
+                cafe.find();
                 break;
             case 5:
                 cafe.del();
